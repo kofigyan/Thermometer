@@ -1,3 +1,4 @@
+
 package com.janslab.thermometer.widgets;
 
 import android.content.Context;
@@ -5,31 +6,17 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.os.Handler;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Scroller;
-import android.widget.Toast;
-
-import java.util.List;
 
 /**
  * Created by Kofi Gyan on 11/27/2015.
  */
 
 
-public class Thermometer extends View implements SensorEventListener {
-
-    private static final String TAG = Thermometer.class.getSimpleName();
-
-    private Handler handler;
-
+public class DummyThermometer extends View {
 
     //circle paint
     private Paint mInnerCirclePaint;
@@ -72,18 +59,16 @@ public class Thermometer extends View implements SensorEventListener {
     Animator mAnimator;
 
 
-    public Thermometer(Context context) {
+    public DummyThermometer(Context context) {
         this(context, null);
     }
 
-    public Thermometer(Context context, AttributeSet attrs) {
+    public DummyThermometer(Context context, AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
     private void init() {
-
-        handler = new Handler();
 
         mInnerCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mInnerCirclePaint.setColor(Color.rgb(200, 115, 205));
@@ -238,56 +223,12 @@ public class Thermometer extends View implements SensorEventListener {
 
 
     //simulate temperature measurement for now
-
-    float uppermostDistanceReading;
-    float currentDistanceReading;
-    float startingDistanceReading; //base distance or distance at which reading starts from ie.reading distance does not start from 0
-
-    //temperature range -30 <= temperature <= 50
-    static final float DEFAULT_UPPERMOST_TEMPERATURE_READING = 50;
-    float temperatureOffset = 30; //takes care of distance btn -30 degree celcius and 0 degree celcius
-    float maxTemperature;
-    float currentTemperatureReading;
-
-    float startingUppermostDiff;
-
-    float distanceToMeasureTo;
-
     private void animateInnerLine(Canvas canvas) {
-
         if (isAnimationStarted == false) {
-
-            Toast.makeText(getContext(), String.valueOf(temperatureC) + " Degree Celcius", Toast.LENGTH_LONG).show();
-
-            currentTemperatureReading = temperatureC + temperatureOffset;
-            maxTemperature = DEFAULT_UPPERMOST_TEMPERATURE_READING + temperatureOffset;
-
-            uppermostDistanceReading = mStartCenterY + mInnerRadius;
-            startingDistanceReading = mEndCenterY + (float) (0.875 * mInnerRadius);
-
-            // Toast.makeText(getContext(),String.valueOf(startingDistanceReading) + " starting distance reading",Toast.LENGTH_LONG).show();
-            // Toast.makeText(getContext(),String.valueOf(uppermostDistanceReading) + " uppermost distance reading" ,Toast.LENGTH_LONG).show();
-
-            startingUppermostDiff = startingDistanceReading - uppermostDistanceReading;
-
-            //currentDistanceReading = (DEFAULT_UPPERMOST_TEMPERATURE_READING /currentTemperatureReading) * ( startingDistanceReading - uppermostDistanceReading ) ;
-
-            currentDistanceReading = (currentTemperatureReading / maxTemperature) * (startingUppermostDiff);
-
-            //Toast.makeText(getContext(),String.valueOf(startingUppermostDiff) + " startingUppermostDiff reading",Toast.LENGTH_LONG).show();
-            //Toast.makeText(getContext(),String.valueOf(currentDistanceReading) + " currentDistanceReading reading" ,Toast.LENGTH_LONG).show();
-
-            distanceToMeasureTo = startingDistanceReading - currentDistanceReading;
-
-
-            //  Toast.makeText(getContext(),String.valueOf(startingDistanceReading) + " starting distance reading",Toast.LENGTH_LONG).show();
-            //Toast.makeText(getContext(),String.valueOf(distanceToMeasureTo ) + " distanceToMeasureTo reading" ,Toast.LENGTH_LONG).show();
-
 
             incrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius);
 
             isAnimationStarted = true;
-
 
         } else {
 
@@ -295,15 +236,13 @@ public class Thermometer extends View implements SensorEventListener {
 
         }
 
-        // if (incrementalTempValue > mStartCenterY + mInnerRadius) {
-        if (incrementalTempValue > distanceToMeasureTo) {
+        if (incrementalTempValue > mStartCenterY + mInnerRadius) {
 
             canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, incrementalTempValue, mInnerCirclePaint);
 
         } else {
 
-            // canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, mStartCenterY + mInnerRadius , mInnerCirclePaint);
-            canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, distanceToMeasureTo, mInnerCirclePaint);
+            canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, mStartCenterY + mInnerRadius, mInnerCirclePaint);
 
         }
 
@@ -364,10 +303,7 @@ public class Thermometer extends View implements SensorEventListener {
 
     @Override
     protected void onAttachedToWindow() {
-
         super.onAttachedToWindow();
-
-        attachToSensor();
 
         measureTemperature();
 
@@ -375,12 +311,7 @@ public class Thermometer extends View implements SensorEventListener {
 
     @Override
     protected void onDetachedFromWindow() {
-
-        detachFromSensor();
-
-
         super.onDetachedFromWindow();
-
 
         stopAnimation();
 
@@ -422,62 +353,4 @@ public class Thermometer extends View implements SensorEventListener {
     }
 
 
-    private SensorManager getSensorManager() {
-        return (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
-    }
-
-    private void attachToSensor() {
-
-        SensorManager sensorManager = getSensorManager();
-
-        List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_AMBIENT_TEMPERATURE);
-        //List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_TEMPERATURE);
-        // List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_LIGHT);
-
-        if (sensors.size() > 0) {
-            Sensor sensor = sensors.get(0);
-            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST, handler);
-        } else {
-            // Log.e(TAG, "No temperature sensor found");
-            Toast.makeText(getContext(), "Not Temperature Sensor Found", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void detachFromSensor() {
-        SensorManager sensorManager = getSensorManager();
-        sensorManager.unregisterListener(this);
-    }
-
-    //int counter;
-    float temperatureC;
-
-    @Override
-    public void onSensorChanged(SensorEvent sensorEvent) {
-
-        if (sensorEvent.values.length > 0) {
-
-            temperatureC = sensorEvent.values[0];
-            //  Log.i(TAG, "*** Temperature: " + temperatureC);
-
-            //float temperatureF = (9.0f / 5.0f) * temperatureC + 32.0f;
-
-            // if(counter < 1)
-            //Toast.makeText(getContext(),String.valueOf(temperatureC),Toast.LENGTH_LONG).show();
-
-            //counter++;
-
-        } else {
-            Log.w(TAG, "Empty sensor event received");
-            Toast.makeText(getContext(), "Sensor Not Found", Toast.LENGTH_LONG).show();
-        }
-    }
-
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-    }
-
-
 }
-
