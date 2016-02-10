@@ -237,8 +237,6 @@ public class Thermometer extends View implements SensorEventListener {
     }
 
 
-    //simulate temperature measurement for now
-
     float uppermostDistanceReading;
     float currentDistanceReading;
     float startingDistanceReading; //base distance or distance at which reading starts from ie.reading distance does not start from 0
@@ -257,7 +255,7 @@ public class Thermometer extends View implements SensorEventListener {
 
         if (isAnimationStarted == false) {
 
-            Toast.makeText(getContext(), String.valueOf(temperatureC) + " Degree Celcius", Toast.LENGTH_LONG).show();
+            // Toast.makeText(getContext(), String.valueOf(temperatureC) + " Degree Celcius", Toast.LENGTH_LONG).show();
 
             currentTemperatureReading = temperatureC + temperatureOffset;
             maxTemperature = DEFAULT_UPPERMOST_TEMPERATURE_READING + temperatureOffset;
@@ -265,23 +263,13 @@ public class Thermometer extends View implements SensorEventListener {
             uppermostDistanceReading = mStartCenterY + mInnerRadius;
             startingDistanceReading = mEndCenterY + (float) (0.875 * mInnerRadius);
 
-            // Toast.makeText(getContext(),String.valueOf(startingDistanceReading) + " starting distance reading",Toast.LENGTH_LONG).show();
-            // Toast.makeText(getContext(),String.valueOf(uppermostDistanceReading) + " uppermost distance reading" ,Toast.LENGTH_LONG).show();
-
             startingUppermostDiff = startingDistanceReading - uppermostDistanceReading;
 
-            //currentDistanceReading = (DEFAULT_UPPERMOST_TEMPERATURE_READING /currentTemperatureReading) * ( startingDistanceReading - uppermostDistanceReading ) ;
 
             currentDistanceReading = (currentTemperatureReading / maxTemperature) * (startingUppermostDiff);
 
-            //Toast.makeText(getContext(),String.valueOf(startingUppermostDiff) + " startingUppermostDiff reading",Toast.LENGTH_LONG).show();
-            //Toast.makeText(getContext(),String.valueOf(currentDistanceReading) + " currentDistanceReading reading" ,Toast.LENGTH_LONG).show();
 
             distanceToMeasureTo = startingDistanceReading - currentDistanceReading;
-
-
-            //  Toast.makeText(getContext(),String.valueOf(startingDistanceReading) + " starting distance reading",Toast.LENGTH_LONG).show();
-            //Toast.makeText(getContext(),String.valueOf(distanceToMeasureTo ) + " distanceToMeasureTo reading" ,Toast.LENGTH_LONG).show();
 
 
             incrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius);
@@ -295,14 +283,12 @@ public class Thermometer extends View implements SensorEventListener {
 
         }
 
-        // if (incrementalTempValue > mStartCenterY + mInnerRadius) {
         if (incrementalTempValue > distanceToMeasureTo) {
 
             canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, incrementalTempValue, mInnerCirclePaint);
 
         } else {
 
-            // canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, mStartCenterY + mInnerRadius , mInnerCirclePaint);
             canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, distanceToMeasureTo, mInnerCirclePaint);
 
         }
@@ -310,7 +296,6 @@ public class Thermometer extends View implements SensorEventListener {
     }
 
 
-    //simulate temperature measurement for now
     private void measureTemperature() {
         mAnimator = new Animator();
         mAnimator.start();
@@ -382,7 +367,7 @@ public class Thermometer extends View implements SensorEventListener {
         super.onDetachedFromWindow();
 
 
-        stopAnimation();
+        stopMeasurement();
 
     }
 
@@ -398,7 +383,7 @@ public class Thermometer extends View implements SensorEventListener {
 
             default:
 
-                stopAnimation();
+                stopMeasurement();
 
                 break;
         }
@@ -416,7 +401,7 @@ public class Thermometer extends View implements SensorEventListener {
     }
 
 
-    private void stopAnimation() {
+    private void stopMeasurement() {
         if (mAnimator != null)
             mAnimator.stop();
     }
@@ -431,8 +416,6 @@ public class Thermometer extends View implements SensorEventListener {
         SensorManager sensorManager = getSensorManager();
 
         List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_AMBIENT_TEMPERATURE);
-        //List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_TEMPERATURE);
-        // List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_LIGHT);
 
         if (sensors.size() > 0) {
             Sensor sensor = sensors.get(0);
@@ -457,14 +440,6 @@ public class Thermometer extends View implements SensorEventListener {
         if (sensorEvent.values.length > 0) {
 
             temperatureC = sensorEvent.values[0];
-            //  Log.i(TAG, "*** Temperature: " + temperatureC);
-
-            //float temperatureF = (9.0f / 5.0f) * temperatureC + 32.0f;
-
-            // if(counter < 1)
-            //Toast.makeText(getContext(),String.valueOf(temperatureC),Toast.LENGTH_LONG).show();
-
-            //counter++;
 
         } else {
             Log.w(TAG, "Empty sensor event received");

@@ -2,27 +2,23 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:gravity="center"
     android:orientation="vertical"
-    android:padding="30dp"
-    android:gravity="center">
+    android:padding="30dp">
 
-    <Button android:id="@+id/dummy_thermometer"
+    <Button
+        android:id="@+id/dummy_thermometer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Dummy Thermometer"
-        android:layout_marginBottom="5dp"/>
+        android:layout_marginBottom="10dp"
+        android:text="Dummy Thermometer" />
 
 
-    <Button android:id="@+id/thermometer"
+    <Button
+        android:id="@+id/thermometer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Thermometer"
-        android:layout_marginBottom="5dp"/>
+        android:text="Thermometer" />
 
-
-    <Button android:id="@+id/light_sensor"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Light Sensor"/>
 
 </LinearLayout>

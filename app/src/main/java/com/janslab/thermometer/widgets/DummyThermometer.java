@@ -313,7 +313,7 @@ public class DummyThermometer extends View {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
 
-        stopAnimation();
+        stopMeasurement();
 
     }
 
@@ -329,7 +329,7 @@ public class DummyThermometer extends View {
 
             default:
 
-                stopAnimation();
+                stopMeasurement();
 
                 break;
         }
@@ -347,7 +347,7 @@ public class DummyThermometer extends View {
     }
 
 
-    private void stopAnimation() {
+    private void stopMeasurement() {
         if (mAnimator != null)
             mAnimator.stop();
     }
