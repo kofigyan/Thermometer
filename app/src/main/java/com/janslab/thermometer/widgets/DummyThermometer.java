@@ -2,6 +2,7 @@
 package com.janslab.thermometer.widgets;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -11,6 +12,8 @@ import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Scroller;
 
+import com.janslab.thermometer.R;
+
 /**
  * Created by Kofi Gyan on 11/27/2015.
  */
@@ -18,45 +21,47 @@ import android.widget.Scroller;
 
 public class DummyThermometer extends View {
 
-    //circle paint
+    //thermometer circles paints
     private Paint mInnerCirclePaint;
     private Paint mOuterCirclePaint;
     private Paint mFirstOuterCirclePaint;
 
-    //arc paint
+    //thermometer arc paint
     private Paint mFirstOuterArcPaint;
 
 
-    //line paint
+    //thermometer lines paints
     private Paint mInnerLinePaint;
     private Paint mOuterLinePaint;
     private Paint mFirstOuterLinePaint;
 
 
-    //radii
+    //thermometer radii
     private int mOuterRadius;
     private int mInnerRadius;
     private int mFirstOuterRadius;
 
 
-    //circles and lines values variables
+    //thermometer colors
+    private int mThermometerColor = Color.rgb(200, 115, 205);
+
+    //circles and lines  variables
     private float mLastCellWidth;
     private int mStageHeight;
     private float mCellWidth;
     private float mStartCenterY; //center of first cell
     private float mEndCenterY; //center of last cell
     private float mStageCenterX;
-    private float xOffset;
-    private float yOffset;
+    private float mXOffset;
+    private float mYOffset;
 
     // I   1st Cell     I  2nd Cell       I  3rd Cell  I
-    private static final int mNoOfCells = 3; //three cells in all  ie.stageHeight divided into 3 equal cells
+    private static final int NUMBER_OF_CELLS = 3; //three cells in all  ie.stageHeight divided into 3 equal cells
 
-    private float incrementalTempValue;
-    private boolean isAnimationStarted = false;
-
-
-    Animator mAnimator;
+    //animation variables
+    private float mIncrementalTempValue;
+    private boolean mIsAnimating;
+    private Animator mAnimator;
 
 
     public DummyThermometer(Context context) {
@@ -64,14 +69,29 @@ public class DummyThermometer extends View {
     }
 
     public DummyThermometer(Context context, AttributeSet attrs) {
-        super(context, attrs);
+        this(context, attrs, 0);
+    }
+
+    public DummyThermometer(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+
+        if (attrs != null) {
+
+            final TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.Thermometer, defStyle, 0);
+
+            mThermometerColor = a.getColor(R.styleable.Thermometer_therm_color, mThermometerColor);
+
+            a.recycle();
+        }
+
         init();
     }
+
 
     private void init() {
 
         mInnerCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mInnerCirclePaint.setColor(Color.rgb(200, 115, 205));
+        mInnerCirclePaint.setColor(mThermometerColor);
         mInnerCirclePaint.setStyle(Paint.Style.FILL);
         mInnerCirclePaint.setStrokeWidth(17f);
 
@@ -83,19 +103,19 @@ public class DummyThermometer extends View {
 
 
         mFirstOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFirstOuterCirclePaint.setColor(Color.rgb(200, 115, 205));
+        mFirstOuterCirclePaint.setColor(mThermometerColor);
         mFirstOuterCirclePaint.setStyle(Paint.Style.FILL);
         mFirstOuterCirclePaint.setStrokeWidth(60f);
 
 
         mFirstOuterArcPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFirstOuterArcPaint.setColor(Color.rgb(200, 115, 205));
+        mFirstOuterArcPaint.setColor(mThermometerColor);
         mFirstOuterArcPaint.setStyle(Paint.Style.STROKE);
         mFirstOuterArcPaint.setStrokeWidth(30f);
 
 
         mInnerLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mInnerLinePaint.setColor(Color.rgb(200, 115, 205));
+        mInnerLinePaint.setColor(mThermometerColor);
         mInnerLinePaint.setStyle(Paint.Style.FILL);
         mInnerLinePaint.setStrokeWidth(17f);
 
@@ -105,7 +125,7 @@ public class DummyThermometer extends View {
 
 
         mFirstOuterLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFirstOuterLinePaint.setColor(Color.rgb(200, 115, 205));
+        mFirstOuterLinePaint.setColor(mThermometerColor);
         mFirstOuterLinePaint.setStyle(Paint.Style.FILL);
 
 
@@ -120,14 +140,14 @@ public class DummyThermometer extends View {
 
         mStageHeight = getHeight();
 
-        mCellWidth = mStageHeight / mNoOfCells;
+        mCellWidth = mStageHeight / NUMBER_OF_CELLS;
 
         //center of first cell
         mStartCenterY = mCellWidth / 2;
 
 
         //move to 3rd cell
-        mLastCellWidth = (mNoOfCells * mCellWidth);
+        mLastCellWidth = (NUMBER_OF_CELLS * mCellWidth);
 
         //center of last(3rd) cell
         mEndCenterY = mLastCellWidth - (mCellWidth / 2);
@@ -146,12 +166,12 @@ public class DummyThermometer extends View {
 
         mFirstOuterArcPaint.setStrokeWidth(mFirstOuterRadius / 4);
 
-        xOffset = mFirstOuterRadius / 4;
-        xOffset = xOffset / 2;
+        mXOffset = mFirstOuterRadius / 4;
+        mXOffset = mXOffset / 2;
 
         //get the d/f btn firstOuterLine and innerAnimatedline
-        yOffset = (mStartCenterY + (float) 0.875 * mOuterRadius) - (mStartCenterY + mInnerRadius);
-        yOffset = yOffset / 2;
+        mYOffset = (mStartCenterY + (float) 0.875 * mOuterRadius) - (mStartCenterY + mInnerRadius);
+        mYOffset = mYOffset / 2;
 
     }
 
@@ -194,58 +214,107 @@ public class DummyThermometer extends View {
 
 
     private void drawInnerCircle(Canvas canvas) {
-        drawCircle(canvas, mStageCenterX, mEndCenterY, mInnerRadius, mInnerCirclePaint);
+        drawCircle(canvas, mInnerRadius, mInnerCirclePaint);
     }
 
     private void drawOuterCircle(Canvas canvas) {
-        drawCircle(canvas, mStageCenterX, mEndCenterY, mOuterRadius, mOuterCirclePaint);
+        drawCircle(canvas, mOuterRadius, mOuterCirclePaint);
     }
 
 
     private void drawFirstOuterCircle(Canvas canvas) {
-        drawCircle(canvas, mStageCenterX, mEndCenterY, mFirstOuterRadius, mFirstOuterCirclePaint);
+        drawCircle(canvas, mFirstOuterRadius, mFirstOuterCirclePaint);
     }
 
 
-    private void drawCircle(Canvas canvas, float cx, float cy, float radius, Paint paint) {
-        canvas.drawCircle(cx, cy, radius, paint);
+    private void drawCircle(Canvas canvas, float radius, Paint paint) {
+        canvas.drawCircle(mStageCenterX, mEndCenterY, radius, paint);
     }
-
 
     private void drawOuterLine(Canvas canvas) {
-        canvas.drawLine(mStageCenterX, mEndCenterY - (float) (0.875 * mOuterRadius), mStageCenterX, mStartCenterY + (float) (0.875 * mOuterRadius), mOuterLinePaint);
+
+        float startY = mEndCenterY - (float) (0.875 * mOuterRadius);
+        float stopY = mStartCenterY + (float) (0.875 * mOuterRadius);
+
+        drawLine(canvas, startY, stopY, mOuterLinePaint);
     }
 
 
     private void drawFirstOuterLine(Canvas canvas) {
-        canvas.drawLine(mStageCenterX, mEndCenterY - (float) (0.875 * mFirstOuterRadius), mStageCenterX, mStartCenterY + (float) (0.875 * mOuterRadius), mFirstOuterLinePaint);
+
+        float startY = mEndCenterY - (float) (0.875 * mFirstOuterRadius);
+        float stopY = mStartCenterY + (float) (0.875 * mOuterRadius);
+
+        drawLine(canvas, startY, stopY, mFirstOuterLinePaint);
+    }
+
+
+    private void drawLine(Canvas canvas, float startY, float stopY, Paint paint) {
+        canvas.drawLine(mStageCenterX, startY, mStageCenterX, stopY, paint);
     }
 
 
     //simulate temperature measurement for now
     private void animateInnerLine(Canvas canvas) {
-        if (isAnimationStarted == false) {
 
-            incrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius);
+        if (mAnimator == null)
+            measureTemperature();
 
-            isAnimationStarted = true;
 
-        } else {
+        if (!mIsAnimating) {
 
-            incrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius) - incrementalTempValue;
+            mIncrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius);
 
-        }
-
-        if (incrementalTempValue > mStartCenterY + mInnerRadius) {
-
-            canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, incrementalTempValue, mInnerCirclePaint);
+            mIsAnimating = true;
 
         } else {
 
-            canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, mStartCenterY + mInnerRadius, mInnerCirclePaint);
+            mIncrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius) - mIncrementalTempValue;
 
         }
 
+        if (mIncrementalTempValue > mStartCenterY + mInnerRadius) {
+            float startY = mEndCenterY + (float) (0.875 * mInnerRadius);
+            drawLine(canvas, startY, mIncrementalTempValue, mInnerCirclePaint);
+
+        } else {
+
+            float startY = mEndCenterY + (float) (0.875 * mInnerRadius);
+            float stopY = mStartCenterY + mInnerRadius;
+            drawLine(canvas, startY, stopY, mInnerCirclePaint);
+            mIsAnimating = false;
+            stopMeasurement();
+
+        }
+
+    }
+
+
+    private void drawFirstOuterCornerArc(Canvas canvas) {
+
+        float y = mStartCenterY - (float) (0.875 * mFirstOuterRadius);
+
+        RectF rectF = new RectF(mStageCenterX - mFirstOuterRadius / 2 + mXOffset, y + mFirstOuterRadius, mStageCenterX + mFirstOuterRadius / 2 - mXOffset, y + (2 * mFirstOuterRadius) + mYOffset);
+
+        canvas.drawArc(rectF, -180, 180, false, mFirstOuterArcPaint);
+
+    }
+
+
+    public void setThermometerColor(int thermometerColor) {
+        this.mThermometerColor = thermometerColor;
+
+        mInnerCirclePaint.setColor(mThermometerColor);
+
+        mFirstOuterCirclePaint.setColor(mThermometerColor);
+
+        mFirstOuterArcPaint.setColor(mThermometerColor);
+
+        mInnerLinePaint.setColor(mThermometerColor);
+
+        mFirstOuterLinePaint.setColor(mThermometerColor);
+
+        invalidate();
     }
 
 
@@ -271,12 +340,14 @@ public class DummyThermometer extends View {
                 return;
 
             if (mRestartAnimation) {
-                mScroller.startScroll(0, (int) (mStartCenterY - (float) (0.875 * mInnerRadius)), 0, (int) (mEndCenterY + mInnerRadius), ANIM_DURATION);
+                int startY = (int) (mStartCenterY - (float) (0.875 * mInnerRadius));
+                int dy = (int) (mEndCenterY + mInnerRadius);
+                mScroller.startScroll(0, startY, 0, dy, ANIM_DURATION);
                 mRestartAnimation = false;
             }
 
             boolean isScrolling = mScroller.computeScrollOffset();
-            incrementalTempValue = mScroller.getCurrY();
+            mIncrementalTempValue = mScroller.getCurrY();
 
             if (isScrolling) {
                 invalidate();
@@ -301,6 +372,12 @@ public class DummyThermometer extends View {
     }
 
 
+    private void stopMeasurement() {
+        if (mAnimator != null)
+            mAnimator.stop();
+    }
+
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
@@ -311,10 +388,9 @@ public class DummyThermometer extends View {
 
     @Override
     protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
-
         stopMeasurement();
 
+        super.onDetachedFromWindow();
     }
 
     @Override
@@ -333,23 +409,6 @@ public class DummyThermometer extends View {
 
                 break;
         }
-    }
-
-
-    private void drawFirstOuterCornerArc(Canvas canvas) {
-
-        float y = mStartCenterY - (float) (0.875 * mFirstOuterRadius);
-
-        RectF rectF = new RectF(mStageCenterX - mFirstOuterRadius / 2 + xOffset, y + mFirstOuterRadius, mStageCenterX + mFirstOuterRadius / 2 - xOffset, y + (2 * mFirstOuterRadius) + yOffset);
-
-        canvas.drawArc(rectF, -180, 180, false, mFirstOuterArcPaint);
-
-    }
-
-
-    private void stopMeasurement() {
-        if (mAnimator != null)
-            mAnimator.stop();
     }
 
 

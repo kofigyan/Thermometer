@@ -1,6 +1,7 @@
 package com.janslab.thermometer.widgets;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -17,6 +18,8 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Scroller;
 import android.widget.Toast;
 
+import com.janslab.thermometer.R;
+
 import java.util.List;
 
 /**
@@ -26,50 +29,57 @@ import java.util.List;
 
 public class Thermometer extends View implements SensorEventListener {
 
-    private static final String TAG = Thermometer.class.getSimpleName();
-
-    private Handler handler;
-
-
-    //circle paint
+    //thermometer circles paints
     private Paint mInnerCirclePaint;
     private Paint mOuterCirclePaint;
     private Paint mFirstOuterCirclePaint;
 
-    //arc paint
+    //thermometer arc paint
     private Paint mFirstOuterArcPaint;
 
 
-    //line paint
+    //thermometer lines paints
     private Paint mInnerLinePaint;
     private Paint mOuterLinePaint;
     private Paint mFirstOuterLinePaint;
 
 
-    //radii
+    //thermometer radii
     private int mOuterRadius;
     private int mInnerRadius;
     private int mFirstOuterRadius;
 
+    //thermometer colors
+    private int mThermometerColor = Color.rgb(200, 115, 205);
 
-    //circles and lines values variables
+    //thermometer circles and lines variables
     private float mLastCellWidth;
     private int mStageHeight;
     private float mCellWidth;
     private float mStartCenterY; //center of first cell
     private float mEndCenterY; //center of last cell
     private float mStageCenterX;
-    private float xOffset;
-    private float yOffset;
+    private float mXOffset;
+    private float mYOffset;
 
     // I   1st Cell     I  2nd Cell       I  3rd Cell  I
-    private static final int mNoOfCells = 3; //three cells in all  ie.stageHeight divided into 3 equal cells
+    private static final int NUMBER_OF_CELLS = 3; //three cells in all  ie.stageHeight divided into 3 equal cells
 
-    private float incrementalTempValue;
-    private boolean isAnimationStarted = false;
+    //thermometer animation variables
+    private float mIncrementalTempValue;
+    private boolean mIsAnimating;
+    private Animator mAnimator;
+
+    private Handler handler;
 
 
-    Animator mAnimator;
+    //temperature measured
+    private float mTemperatureC;
+    //temperature range -30 <= temperature <= 50
+    private static final float DEFAULT_UPPERMOST_TEMPERATURE_READING = 50;
+    private static final float TEMPERATURE_OFFSET = 30; //takes care of distance btn -30 degree celcius and 0 degree celcius
+
+    private float mMaxDistance; //distance to measure to => difference between startingDistanceReading and currentDistanceReading
 
 
     public Thermometer(Context context) {
@@ -77,7 +87,21 @@ public class Thermometer extends View implements SensorEventListener {
     }
 
     public Thermometer(Context context, AttributeSet attrs) {
-        super(context, attrs);
+        this(context, attrs, 0);
+    }
+
+    public Thermometer(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+
+        if (attrs != null) {
+
+            final TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.Thermometer, defStyle, 0);
+
+            mThermometerColor = a.getColor(R.styleable.Thermometer_therm_color, mThermometerColor);
+
+            a.recycle();
+        }
+
         init();
     }
 
@@ -86,7 +110,7 @@ public class Thermometer extends View implements SensorEventListener {
         handler = new Handler();
 
         mInnerCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mInnerCirclePaint.setColor(Color.rgb(200, 115, 205));
+        mInnerCirclePaint.setColor(mThermometerColor);
         mInnerCirclePaint.setStyle(Paint.Style.FILL);
         mInnerCirclePaint.setStrokeWidth(17f);
 
@@ -98,21 +122,22 @@ public class Thermometer extends View implements SensorEventListener {
 
 
         mFirstOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFirstOuterCirclePaint.setColor(Color.rgb(200, 115, 205));
+        mFirstOuterCirclePaint.setColor(mThermometerColor);
         mFirstOuterCirclePaint.setStyle(Paint.Style.FILL);
         mFirstOuterCirclePaint.setStrokeWidth(60f);
 
 
         mFirstOuterArcPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFirstOuterArcPaint.setColor(Color.rgb(200, 115, 205));
+        mFirstOuterArcPaint.setColor(mThermometerColor);
         mFirstOuterArcPaint.setStyle(Paint.Style.STROKE);
         mFirstOuterArcPaint.setStrokeWidth(30f);
 
 
         mInnerLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mInnerLinePaint.setColor(Color.rgb(200, 115, 205));
+        mInnerLinePaint.setColor(mThermometerColor);
         mInnerLinePaint.setStyle(Paint.Style.FILL);
         mInnerLinePaint.setStrokeWidth(17f);
+
 
         mOuterLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mOuterLinePaint.setColor(Color.WHITE);
@@ -120,7 +145,7 @@ public class Thermometer extends View implements SensorEventListener {
 
 
         mFirstOuterLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mFirstOuterLinePaint.setColor(Color.rgb(200, 115, 205));
+        mFirstOuterLinePaint.setColor(mThermometerColor);
         mFirstOuterLinePaint.setStyle(Paint.Style.FILL);
 
 
@@ -135,14 +160,14 @@ public class Thermometer extends View implements SensorEventListener {
 
         mStageHeight = getHeight();
 
-        mCellWidth = mStageHeight / mNoOfCells;
+        mCellWidth = mStageHeight / NUMBER_OF_CELLS;
 
         //center of first cell
         mStartCenterY = mCellWidth / 2;
 
 
         //move to 3rd cell
-        mLastCellWidth = (mNoOfCells * mCellWidth);
+        mLastCellWidth = (NUMBER_OF_CELLS * mCellWidth);
 
         //center of last(3rd) cell
         mEndCenterY = mLastCellWidth - (mCellWidth / 2);
@@ -161,12 +186,12 @@ public class Thermometer extends View implements SensorEventListener {
 
         mFirstOuterArcPaint.setStrokeWidth(mFirstOuterRadius / 4);
 
-        xOffset = mFirstOuterRadius / 4;
-        xOffset = xOffset / 2;
+        mXOffset = mFirstOuterRadius / 4;
+        mXOffset = mXOffset / 2;
 
-        //get the d/f btn firstOuterLine and innerAnimatedline
-        yOffset = (mStartCenterY + (float) 0.875 * mOuterRadius) - (mStartCenterY + mInnerRadius);
-        yOffset = yOffset / 2;
+        //get the difference btn firstOuterLine and innerAnimatedline
+        mYOffset = (mStartCenterY + (float) 0.875 * mOuterRadius) - (mStartCenterY + mInnerRadius);
+        mYOffset = mYOffset / 2;
 
     }
 
@@ -195,7 +220,7 @@ public class Thermometer extends View implements SensorEventListener {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 
-        //take care of paddingTop and paddingBottom
+        //takes care of paddingTop and paddingBottom
         int paddingY = getPaddingBottom() + getPaddingTop();
 
         //get height and width
@@ -209,90 +234,131 @@ public class Thermometer extends View implements SensorEventListener {
 
 
     private void drawInnerCircle(Canvas canvas) {
-        drawCircle(canvas, mStageCenterX, mEndCenterY, mInnerRadius, mInnerCirclePaint);
+        drawCircle(canvas, mInnerRadius, mInnerCirclePaint);
     }
 
     private void drawOuterCircle(Canvas canvas) {
-        drawCircle(canvas, mStageCenterX, mEndCenterY, mOuterRadius, mOuterCirclePaint);
+        drawCircle(canvas, mOuterRadius, mOuterCirclePaint);
     }
 
 
     private void drawFirstOuterCircle(Canvas canvas) {
-        drawCircle(canvas, mStageCenterX, mEndCenterY, mFirstOuterRadius, mFirstOuterCirclePaint);
+        drawCircle(canvas, mFirstOuterRadius, mFirstOuterCirclePaint);
     }
 
 
-    private void drawCircle(Canvas canvas, float cx, float cy, float radius, Paint paint) {
-        canvas.drawCircle(cx, cy, radius, paint);
+    private void drawCircle(Canvas canvas, float radius, Paint paint) {
+        canvas.drawCircle(mStageCenterX, mEndCenterY, radius, paint);
     }
 
 
     private void drawOuterLine(Canvas canvas) {
-        canvas.drawLine(mStageCenterX, mEndCenterY - (float) (0.875 * mOuterRadius), mStageCenterX, mStartCenterY + (float) (0.875 * mOuterRadius), mOuterLinePaint);
+
+        float startY = mEndCenterY - (float) (0.875 * mOuterRadius);
+        float stopY = mStartCenterY + (float) (0.875 * mOuterRadius);
+
+        drawLine(canvas, startY, stopY, mOuterLinePaint);
+
     }
 
 
     private void drawFirstOuterLine(Canvas canvas) {
-        canvas.drawLine(mStageCenterX, mEndCenterY - (float) (0.875 * mFirstOuterRadius), mStageCenterX, mStartCenterY + (float) (0.875 * mOuterRadius), mFirstOuterLinePaint);
+
+        float startY = mEndCenterY - (float) (0.875 * mFirstOuterRadius);
+        float stopY = mStartCenterY + (float) (0.875 * mOuterRadius);
+
+        drawLine(canvas, startY, stopY, mFirstOuterLinePaint);
     }
 
 
-    float uppermostDistanceReading;
-    float currentDistanceReading;
-    float startingDistanceReading; //base distance or distance at which reading starts from ie.reading distance does not start from 0
+    private void drawLine(Canvas canvas, float startY, float stopY, Paint paint) {
+        canvas.drawLine(mStageCenterX, startY, mStageCenterX, stopY, paint);
+    }
 
-    //temperature range -30 <= temperature <= 50
-    static final float DEFAULT_UPPERMOST_TEMPERATURE_READING = 50;
-    float temperatureOffset = 30; //takes care of distance btn -30 degree celcius and 0 degree celcius
-    float maxTemperature;
-    float currentTemperatureReading;
 
-    float startingUppermostDiff;
+    private void drawFirstOuterCornerArc(Canvas canvas) {
 
-    float distanceToMeasureTo;
+        float y = mStartCenterY - (float) (0.875 * mFirstOuterRadius);
+
+        RectF rectF = new RectF(mStageCenterX - mFirstOuterRadius / 2 + mXOffset, y + mFirstOuterRadius, mStageCenterX + mFirstOuterRadius / 2 - mXOffset, y + (2 * mFirstOuterRadius) + mYOffset);
+
+        canvas.drawArc(rectF, -180, 180, false, mFirstOuterArcPaint);
+
+    }
+
 
     private void animateInnerLine(Canvas canvas) {
 
-        if (isAnimationStarted == false) {
+        if (mAnimator == null)
+            measureTemperature();
 
-            // Toast.makeText(getContext(), String.valueOf(temperatureC) + " Degree Celcius", Toast.LENGTH_LONG).show();
+        if (!mIsAnimating) {
 
-            currentTemperatureReading = temperatureC + temperatureOffset;
-            maxTemperature = DEFAULT_UPPERMOST_TEMPERATURE_READING + temperatureOffset;
+            //this local variables help to get the distance to measure to
+            float uppermostDistanceReading;
+            float currentDistanceReading; //  distance equivalence of temperature reading
+            float startingDistanceReading; //base distance or distance at which reading starts from ie.reading distance does not start from 0
+            float startingUppermostDiff; //difference between startingDistanceReading and uppermostDistanceReading
+
+            float maxTemperature; //maximum temperature NB. makes provision for TEMPERATURE_OFFSET
+            float currentTemperatureReading; // current temperature reading NB. makes provision for TEMPERATURE_OFFSET
+
+
+            currentTemperatureReading = mTemperatureC + TEMPERATURE_OFFSET;
+            maxTemperature = DEFAULT_UPPERMOST_TEMPERATURE_READING + TEMPERATURE_OFFSET;
 
             uppermostDistanceReading = mStartCenterY + mInnerRadius;
             startingDistanceReading = mEndCenterY + (float) (0.875 * mInnerRadius);
 
             startingUppermostDiff = startingDistanceReading - uppermostDistanceReading;
 
-
+            //convert temperature reading to its distance equivalence
             currentDistanceReading = (currentTemperatureReading / maxTemperature) * (startingUppermostDiff);
 
+            mMaxDistance = startingDistanceReading - currentDistanceReading;
 
-            distanceToMeasureTo = startingDistanceReading - currentDistanceReading;
+            mIncrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius);
 
-
-            incrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius);
-
-            isAnimationStarted = true;
+            mIsAnimating = true;
 
 
         } else {
 
-            incrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius) - incrementalTempValue;
+            mIncrementalTempValue = mEndCenterY + (float) (0.875 * mInnerRadius) - mIncrementalTempValue;
 
         }
 
-        if (incrementalTempValue > distanceToMeasureTo) {
+        if (mIncrementalTempValue > mMaxDistance) {
 
-            canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, incrementalTempValue, mInnerCirclePaint);
+            float startY = mEndCenterY + (float) (0.875 * mInnerRadius);
+            drawLine(canvas, startY, mIncrementalTempValue, mInnerCirclePaint);
 
         } else {
 
-            canvas.drawLine(mStageCenterX, mEndCenterY + (float) (0.875 * mInnerRadius), mStageCenterX, distanceToMeasureTo, mInnerCirclePaint);
+            float startY = mEndCenterY + (float) (0.875 * mInnerRadius);
+            drawLine(canvas, startY, mMaxDistance, mInnerCirclePaint);
 
+            mIsAnimating = false;
+            stopMeasurement();
         }
 
+    }
+
+
+    public void setThermometerColor(int thermometerColor) {
+        this.mThermometerColor = thermometerColor;
+
+        mInnerCirclePaint.setColor(mThermometerColor);
+
+        mFirstOuterCirclePaint.setColor(mThermometerColor);
+
+        mFirstOuterArcPaint.setColor(mThermometerColor);
+
+        mInnerLinePaint.setColor(mThermometerColor);
+
+        mFirstOuterLinePaint.setColor(mThermometerColor);
+
+        invalidate();
     }
 
 
@@ -317,12 +383,14 @@ public class Thermometer extends View implements SensorEventListener {
                 return;
 
             if (mRestartAnimation) {
-                mScroller.startScroll(0, (int) (mStartCenterY - (float) (0.875 * mInnerRadius)), 0, (int) (mEndCenterY + mInnerRadius), ANIM_DURATION);
+                int startY = (int) (mStartCenterY - (float) (0.875 * mInnerRadius));
+                int dy = (int) (mEndCenterY + mInnerRadius);
+                mScroller.startScroll(0, startY, 0, dy, ANIM_DURATION);
                 mRestartAnimation = false;
             }
 
             boolean isScrolling = mScroller.computeScrollOffset();
-            incrementalTempValue = mScroller.getCurrY();
+            mIncrementalTempValue = mScroller.getCurrY();
 
             if (isScrolling) {
                 invalidate();
@@ -347,60 +415,6 @@ public class Thermometer extends View implements SensorEventListener {
     }
 
 
-    @Override
-    protected void onAttachedToWindow() {
-
-        super.onAttachedToWindow();
-
-        attachToSensor();
-
-        measureTemperature();
-
-    }
-
-    @Override
-    protected void onDetachedFromWindow() {
-
-        detachFromSensor();
-
-
-        super.onDetachedFromWindow();
-
-
-        stopMeasurement();
-
-    }
-
-    @Override
-    public void setVisibility(int visibility) {
-        super.setVisibility(visibility);
-        switch (visibility) {
-            case View.VISIBLE:
-
-                measureTemperature();
-
-                break;
-
-            default:
-
-                stopMeasurement();
-
-                break;
-        }
-    }
-
-
-    private void drawFirstOuterCornerArc(Canvas canvas) {
-
-        float y = mStartCenterY - (float) (0.875 * mFirstOuterRadius);
-
-        RectF rectF = new RectF(mStageCenterX - mFirstOuterRadius / 2 + xOffset, y + mFirstOuterRadius, mStageCenterX + mFirstOuterRadius / 2 - xOffset, y + (2 * mFirstOuterRadius) + yOffset);
-
-        canvas.drawArc(rectF, -180, 180, false, mFirstOuterArcPaint);
-
-    }
-
-
     private void stopMeasurement() {
         if (mAnimator != null)
             mAnimator.stop();
@@ -421,8 +435,7 @@ public class Thermometer extends View implements SensorEventListener {
             Sensor sensor = sensors.get(0);
             sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST, handler);
         } else {
-            // Log.e(TAG, "No temperature sensor found");
-            Toast.makeText(getContext(), "Not Temperature Sensor Found", Toast.LENGTH_LONG).show();
+            Toast.makeText(getContext(), "No Temperature Sensor Found", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -431,18 +444,15 @@ public class Thermometer extends View implements SensorEventListener {
         sensorManager.unregisterListener(this);
     }
 
-    //int counter;
-    float temperatureC;
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
 
         if (sensorEvent.values.length > 0) {
 
-            temperatureC = sensorEvent.values[0];
+            mTemperatureC = sensorEvent.values[0];
 
         } else {
-            Log.w(TAG, "Empty sensor event received");
             Toast.makeText(getContext(), "Sensor Not Found", Toast.LENGTH_LONG).show();
         }
     }
@@ -451,6 +461,47 @@ public class Thermometer extends View implements SensorEventListener {
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
+    }
+
+
+    @Override
+    protected void onAttachedToWindow() {
+
+        super.onAttachedToWindow();
+
+        attachToSensor();
+
+        measureTemperature();
+
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+
+        detachFromSensor();
+
+        stopMeasurement();
+
+        super.onDetachedFromWindow();
+
+    }
+
+    @Override
+    public void setVisibility(int visibility) {
+        super.setVisibility(visibility);
+        switch (visibility) {
+            case View.VISIBLE:
+
+                measureTemperature();
+
+                break;
+
+            default:
+
+                stopMeasurement();
+
+                break;
+        }
     }
 
 
