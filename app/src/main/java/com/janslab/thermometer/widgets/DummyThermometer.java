@@ -1,4 +1,3 @@
-
 package com.janslab.thermometer.widgets;
 
 import android.content.Context;

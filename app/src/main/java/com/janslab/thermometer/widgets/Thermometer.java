@@ -506,4 +506,3 @@ public class Thermometer extends View implements SensorEventListener {
 
 
 }
-
