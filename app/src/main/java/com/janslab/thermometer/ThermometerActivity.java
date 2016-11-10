@@ -13,7 +13,7 @@ public class ThermometerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.thermometer_layout);
+        setContentView(R.layout.activity_thermometer);
 
     }
 
